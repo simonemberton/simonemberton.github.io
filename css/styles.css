@@ -1,0 +1,207 @@
+/*
+COLOUR PALETTE
+Dark blue #1E3143
+Orange #FF9523
+Ivory #D8D9D0
+Light grey #D3D3D3
+Off-white #f6f6f6
+Light blue #44C9E1
+*/
+
+/* GLOBAL STYLES
+--------------------------------------- */
+/* 
+  https://www.paulirish.com/2012/box-sizing-border-box-ftw/
+*/
+html {
+  box-sizing: border-box;
+  font-size: 62.5%; /* set default to 10px */
+}
+*, *:before, *:after {
+  box-sizing: inherit;
+}
+
+html, body {
+    height: 100%;
+    margin: 0;
+    line-height: 1.2;
+}
+body {
+    background: #D3D3D3;
+    font-family: "Rubik", sans-serif;
+    font-size: 1.6rem;
+}
+h1, h2, h3 {
+    font-family: "Inter", sans-serif;
+    font-weight: 400;
+}
+h1 {
+    color: #1E3143;
+    font-size: 3.8rem;
+    font-weight: bold;
+    line-height: 1;
+    letter-spacing: 0.01em;
+}
+h2 {
+    font-size: 3rem;
+}
+h3 {
+    font-size: 2rem;
+}
+
+/* link styles */
+header a {
+    color: #1E3143;
+}
+footer a {
+    color: #44C9E1;
+}
+a:hover {
+    color: #FF9523;
+    text-decoration: none;
+}
+.btn {
+    background: #1E3143;
+    color: #44C9E1;
+    text-decoration: none;
+    text-transform: uppercase;
+    font-size: 1.2rem;
+    display: inline-block;
+    padding: 7px;
+    letter-spacing: 0.05em;
+    line-height: 1;
+    border-radius: 4px;
+} 
+.content-wrapper {
+    flex: 1 0 auto;
+    margin: 0 auto;
+    padding: 30px;
+    max-width: 900px;
+}
+.content-bg {
+    background: rgb(255 255 255 / 0.85);
+    padding: 30px;
+}
+
+/* HEADER
+--------------------------------------- */
+.nav-wrapper li {
+    display: inline;
+    float: right;
+    margin-right: 30px;
+    font-size: 2.4rem;
+}
+header a:link{
+    text-decoration: none;
+}
+.header-wrapper {
+    width: 100%;
+    padding-top: 30px;
+}
+
+/* ABOUT
+--------------------------------------- */
+.about {
+    background: url(../images/inception4c_ch7_div3_2x.png) no-repeat;
+    background-size: cover;
+    display: flex;
+    flex-direction: column;
+    line-height: 1.4;
+}
+@media screen and (max-width: 650px) {
+    .about .content-wrapper {
+        padding: 20px;
+    }
+    .content-bg {
+    padding: 20px;
+    }
+}
+
+/* PROJECT
+--------------------------------------- */
+.project {
+    background: url(../images/inception4b_ch72_div3_2x.png) repeat;
+    background-size: cover;
+    display: flex;
+    flex-direction: column;
+}
+.project .content-bg {
+    background: rgb(255 255 255 / 0.95);
+}
+@media screen and (max-width: 650px) {
+    .project header::before {
+        height: 200px;
+    }
+    h1 {
+        font-size: 3.2rem;
+    }
+    h2 {
+        font-size: 1.8rem;
+    }
+}
+
+/* Projects
+--------------------------------------- */
+.project-item {
+    margin-bottom: 50px; 
+}
+.project-item img {
+    width: 300px;
+}
+@media screen and (min-width: 649px) { 
+    .project-wrapper {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        column-gap: 20px;
+    }
+    .project-item img {
+        width: 100%;
+    }
+     header .content-wrapper{
+        padding: 30px;
+    }
+   
+}
+@media screen and (max-width: 650px) {
+    .project-item img {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+}
+
+/* FOOTER
+--------------------------------------- */
+footer {
+    background: #1E3143;
+    color: #D8D9D0;
+}
+footer a:link{
+    text-decoration: none;
+}
+.socials {
+    list-style-type: none;
+    padding: 0;
+}
+.socials li {
+    display: inline-block;
+    margin-left: 10px; 
+}
+.socials img {
+    width: 32px;
+}
+.socials img:hover {
+    opacity: 0.5;
+}
+@media screen and (min-width: 650px) {
+    footer{
+        display: flex;
+        justify-content: space-between;
+        padding: 0 20px; 
+    }
+}
+@media screen and (max-width: 649px) {
+    footer{
+        text-align: center;
+        padding: 10px;
+    }
+}
