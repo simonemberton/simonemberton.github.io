@@ -102,7 +102,7 @@ header a:link{
 /* ABOUT
 --------------------------------------- */
 .about {
-    background: url(../images/inception4c_ch7_div3_2x.png) no-repeat;
+    background: url(../images/inception4c_ch7_div3_2x.png) repeat;
     background-size: cover;
     display: flex;
     flex-direction: column;
