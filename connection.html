@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Connection</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+<style>
+:root{--bg:#07070c;--fg:#d8dae6;--panel:rgba(14,14,24,.78);--accent:#7fd4c4}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font:13px/1.4 system-ui,sans-serif;overflow:hidden}
+canvas{display:block}
+#ui{max-height:calc(100% - 40px);overflow:auto;position:fixed;top:calc(10px + env(safe-area-inset-top,0px));left:10px;width:210px;max-width:60vw;padding:10px 12px;background:var(--panel);border:1px solid #ffffff1c;border-radius:10px;backdrop-filter:blur(6px)}
+#ui label{display:block;margin:6px 0 2px;display:flex;justify-content:space-between}
+#ui input[type=range]{width:100%;accent-color:var(--accent)}
+#ui select{width:100%;background:#15151f;color:var(--fg);border:1px solid #ffffff22;border-radius:6px;padding:3px}
+#ui .row{display:flex;gap:6px;align-items:center;margin-top:8px}
+#ui button{background:none;border:0;color:var(--fg);cursor:pointer;font-size:15px;padding:0 3px}
+#ui strong{margin-right:auto}
+body.perf #ui{display:none}
+body.perf,body.perf canvas{cursor:none}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);opacity:0;transition:opacity .6s;pointer-events:none;background:var(--panel);padding:6px 12px;border-radius:8px;font-size:12px;z-index:6}
+#toast.show{opacity:.85}
+#body.hidden{display:none}
+#start{transition:opacity 2s;position:fixed;inset:0;display:flex;flex-direction:column;gap:10px;align-items:center;justify-content:center;background:var(--bg);cursor:pointer;z-index:5;text-align:center;padding:20px}
+#start h1{font-weight:300;letter-spacing:.3em;margin:0;font-size:22px}
+#start p{opacity:.6;margin:0}
+#start.off{opacity:0;pointer-events:none}
+</style>
+</head>
+<body>
+<div id="start"><h1>CONNECTION</h1><p>Click to Start</p><p style="font-size:11px;opacity:.35;margin-top:14px">F &ndash; fullscreen &nbsp;&middot;&nbsp; H &ndash; hide / show controls</p></div>
+<div id="toast"></div>
+<div id="ui">
+  <div class="row" style="margin:0"><strong>Controls</strong><button id="fs" title="Fullscreen (F)">&#x26F6;</button><button id="hide" title="Hide controls completely (H)">&#x25D0;</button><button id="tog" title="Collapse">–</button></div>
+  <div id="body">
+    <label>Particles <span id="vN">16</span></label><input id="N" type="range" min="2" max="200" value="16">
+    <label>Distance % <span id="vT">18</span></label><input id="T" type="range" min="4" max="40" value="18">
+    <label>Min length % (full volume) <span id="vL">25</span></label><input id="L" type="range" min="0" max="80" value="25">
+    <label>Speed <span id="vS">0.7</span></label><input id="S" type="range" min="0.2" max="3" step="0.1" value="0.7">
+    <label>Max voices <span id="vV">8</span></label><input id="V" type="range" min="1" max="12" value="8">
+    <label>Note length (s) <span id="vHL">5</span></label><input id="HL" type="range" min="1" max="20" step="0.5" value="5">
+    <label>Note spacing (s) <span id="vGP">0.4</span></label><input id="GP" type="range" min="0" max="3" step="0.1" value="0.4">
+    <label>Macro cycle (min, 0 = off) <span id="vMP">15</span></label><input id="MP" type="range" min="0" max="60" step="1" value="15">
+    <label>Extra particles at peak <span id="vBP">16</span></label><input id="BP" type="range" min="0" max="40" value="16">
+    <label>White flashes (0 = off) <span id="vFL">60</span></label><input id="FL" type="range" min="0" max="100" value="60">
+    <label>Static level (dB) <span id="vGL">-22</span></label><input id="GL" type="range" min="-40" max="-10" value="-22">
+    <label>Reveal structure</label><select id="R"><option value="auto">Auto (narrative)</option><option value="off">Hidden</option><option value="on">Always</option></select>
+    <label>Melody spacing (s) <span id="vMG">12</span></label><input id="MG" type="range" min="0" max="40" step="1" value="12">
+    <label>Melody level (dB) <span id="vML">-14</span></label><input id="ML" type="range" min="-30" max="0" step="1" value="-14">
+    <label>Attack (s, slowest) <span id="vEA">2.5</span></label><input id="EA" type="range" min="0.2" max="6" step="0.1" value="2.5">
+    <label>Decay (s) <span id="vED">3</span></label><input id="ED" type="range" min="0.1" max="8" step="0.1" value="3">
+    <label>Sustain level <span id="vES">0.6</span></label><input id="ES" type="range" min="0.2" max="1" step="0.05" value="0.6">
+    <label>Release (s, longest) <span id="vER">8</span></label><input id="ER" type="range" min="1" max="12" step="0.5" value="8">
+    <label>Scale</label><select id="C"><option value="minpent">Minor pentatonic</option><option value="majpent">Major pentatonic</option><option value="dorian">Dorian</option><option value="whole">Whole tone</option></select>
+    <label>Colours</label><select id="H"><option value="ember">Ember &amp; violet</option><option value="mono">Black &amp; white</option></select>
+    <div class="row"><input id="D" type="checkbox"><label for="D" style="margin:0">Debug particles (D)</label></div>
+    <div id="lvl" style="margin-top:8px;opacity:.7">Peak: –</div>
+  </div>
+</div>
+<script>
+// ---------- Particle (base class; subclass to vary movement, life, sound) ----------
+class Particle {
+  static count = 0;
+  constructor() {
+    this.id = Particle.count++;
+    this.pos = createVector(random(width), random(height));
+    this.vel = p5.Vector.fromAngle(random(TWO_PI), random(0.015, 0.07) * min(width, height)); // px/s
+    this.age = 0; this.life = random(12, 30); this.dead = false; this.deg = floor(random(15)); this.ping = 0; this.sung = -1;
+  }
+  get fade() { return constrain(min(this.age, this.life - this.age), 0, 1); } // 1s fade in/out
+  update(dt, k) {
+    this.pos.add(p5.Vector.mult(this.vel, dt * k));
+    this.pos.x = (this.pos.x + width) % width;   // edge wrapping
+    this.pos.y = (this.pos.y + height) % height;
+    this.age += dt; this.ping = max(0, this.ping - dt * 0.7);
+    if (this.age >= this.life) this.dead = true;
+  }
+  display(thr, k, a = 1, full = false) {          // reveal / debug view: the hidden particles and their circular boundaries
+    const f = this.fade * a; if (f <= 0.01) return;
+    const u = this.deg / 14, c = theme === 'mono' ? [255, 255, 255] : emberCol(u);
+    noFill(); stroke(255, 255, 255, (full ? 30 : 40) * f); circle(this.pos.x, this.pos.y, thr * 2);
+    if (this.ping > 0) { stroke(c[0], c[1], c[2], 230 * this.ping * this.fade); circle(this.pos.x, this.pos.y, 8 + 44 * (1 - this.ping)); }   // ring when the particle sounds its note
+    if (full) {
+      stroke(120, 255, 230, 200 * f); fill(120, 255, 230, 120 * f); circle(this.pos.x, this.pos.y, 6);
+      line(this.pos.x, this.pos.y, this.pos.x + this.vel.x * k * 0.6, this.pos.y + this.vel.y * k * 0.6);
+    } else { noStroke(); fill(c[0], c[1], c[2], 220 * f); circle(this.pos.x, this.pos.y, 5); }
+  }
+}
+
+// ---------- Connection: one pair in range ----------
+// deterministic hash of an unordered particle pair -> the pair's musical identity
+const pairHash = (x, y) => { let h = Math.imul(x + 1, 73856093) ^ Math.imul(y + 1, 19349663); h = Math.imul(h ^ (h >>> 13), 1274126177); return (h ^ (h >>> 16)) >>> 0; };
+class Connection {
+  constructor(a, b) { this.a = a; this.b = b; this.alpha = 0; this.born = millis(); this.h = pairHash(Math.min(a.id, b.id), Math.max(a.id, b.id)); this.voice = null; this.fadeTime = 1; this.bond = 1; this.deg = 0; }
+  measure() {
+    const d = p5.Vector.sub(this.b.pos, this.a.pos);
+    this.len = d.mag();
+    if (this.len <= sys.T * 1.1) this.last = [this.a.pos.x, this.a.pos.y, this.b.pos.x, this.b.pos.y];  // last in-range endpoints (ignores edge-wrap jumps)
+    d.normalize();
+    const rel = p5.Vector.sub(this.b.vel, this.a.vel).mult(sys.k);
+    const ref = 0.12 * min(width, height);
+    this.closingN = constrain(-rel.dot(d) / ref, 0, 1);  // approach speed along the line
+    this.relN = constrain(rel.mag() / ref, 0, 1);        // overall relative speed
+  }
+  get mid() { return [(this.a.pos.x + this.b.pos.x) / 2, (this.a.pos.y + this.b.pos.y) / 2]; }
+  display(T) {
+    const u = this.u ?? (this.h % 1000) / 999;   // 0 = low note, 1 = high note
+    const c = theme === 'mono' ? [255, 255, 255] : emberCol(u);
+    // Brightness, not thickness or white, carries intensity: bonded pairs, the arc's peak and the climax flare make the line's own colour stronger.
+    // (White is reserved for the brief whole-network flashes.)
+    const I = sys.I, b = min(this.bond - 1, 4) / 4, lift = 1 + 0.4 * I + 0.25 * b + 0.3 * sys.glow;
+    stroke(min(255, c[0] * lift), min(255, c[1] * lift), min(255, c[2] * lift), min(255, 215 * this.alpha * sys.lineGain * (0.85 + 0.3 * I + 0.4 * b + 0.3 * sys.glow)));
+    strokeWeight(1 + 1.2 * this.alpha);
+    line(...(this.fz || [this.a.pos.x, this.a.pos.y, this.b.pos.x, this.b.pos.y]));
+  }
+}
+
+// ---------- ParticleSystem: spawning, respawning, connection detection ----------
+class ParticleSystem {
+  constructor(n) { this.ps = []; this.conns = new Map(); this.fading = []; this.k = 0.7; this.thr = 0.18; this.clock = 0; this.period = 0; this.breath = 1; this.cyc = 0; this.bonds = new Map(); this.armed = true; this.glow = 0; this.tick = 0; this.minf = 0.25; this.listener = null; this.baseN = n; this.boost = 16; this.I = 0; this.lastAdj = 0; this.flickAmt = 0.6; this.reveal = 0; this.revealMode = 'auto'; this.hush = 0; this.S = 0; this.lineGain = 1; this.flashes = []; this.flashOn = false; this.slamCyc = -1; this.nextSing = 0; this.runs = -1; this.finished = false; this.endFade = 0; this.cool = 0; this.waveW = 0.8; this.setCount(n); }
+  get minLen() { return this.minf * this.T; }   // lines shorter than this all share the top note
+  get T() { return this.thr * this.breath * min(width, height); }       // threshold scales with canvas
+  spawn() {                                               // a new particle inherits its character from a living one (with mutation)
+    const p = new Particle(), live = (this.ps || []).filter(q => q && !q.dead);
+    if (live.length && random() < 0.75) p.deg = constrain(random(live).deg + floor(random(-2, 3)), 0, 14);
+    return p;
+  }                      // override for particle subclasses
+  get runTint() { return (((this.runs % 3) + 3) % 3) * 0.35; }     // each run's warm colour leans a little more towards rose
+  reset() {                                                    // a fresh run of the piece
+    this.ps = []; this.conns.clear(); this.fading = []; this.flashes = []; this.bonds.clear(); this.runs++;
+    this.clock = this.period * 0.05; this.cyc = 0; this.slamCyc = -1; this.nextSing = 0; this.lastAdj = 0; this.glow = 0;
+    this.finished = false; this.endFade = 0; this.cool = 0; this.hush = 0; this.I = 0; this.setCount(this.baseN);
+  }
+  targetN() { return Math.round(this.baseN * (1 - 0.5 * this.S) + this.boost * this.I); }
+  setCount(n) {                                           // grow now; shrink by letting random particles fade out (they are not replaced)
+    const live = this.ps.filter(p => !p.retire);
+    while (live.length < n) { const p = this.spawn(); this.ps.push(p); live.push(p); }
+    while (live.length > n) { const p = live.splice(Math.floor(Math.random() * live.length), 1)[0]; p.retire = true; p.life = p.age + 1; }
+  }
+  update(dt) {
+    this.clock += dt; this.glow = max(0, this.glow - dt * 0.35);
+    const L = this.listener;
+    if (this.period > 0) {
+      // THE ARC (fractions of one cycle):
+      //  0.00-0.54  slow build: sparse, quiet, gradually denser and brighter
+      //  0.54-0.585 hush: lines fade, the audio is ducked to near-silence and no new notes start
+      //  0.585-0.66 climax: the hush breaks at once; full intensity, a chord, and a few whole-network white flashes with static
+      //  0.66-0.90  long fade; the hidden particles and circles are revealed (0.79-0.91, peaking at 0.85) and each connected one sounds its own note
+      //  0.90-1.00  stillness: few particles, no melody
+      const ph = this.clock / this.period, ss = (x0, x1, x) => { const t = constrain((x - x0) / (x1 - x0), 0, 1); return t * t * (3 - 2 * t); };
+      this.I = ph < 0.585 ? 0.85 * Math.pow(Math.min(ph / 0.54, 1), 1.8) : ph < 0.66 ? 0.85 + 0.15 * ss(0.585, 0.6, ph) : Math.pow(1 - ss(0.66, 0.9, ph), 1.4);
+      this.hush = ph < 0.585 ? ss(0.54, 0.565, ph) : 0;
+      this.lineGain = 1 - 0.85 * this.hush;
+      this.S = ph > 0.5 ? ss(0.88, 0.93, ph) : 1 - ss(0, 0.06, ph);
+      this.breath = 0.75 + 1.3 * Math.pow(this.I, 2.2);
+      this.cool = ss(0.60, 0.92, ph);                                               // colours cool from ember towards blue-purple after the climax
+      this.endFade = ss(0.987, 1, ph); if (ph >= 1) this.finished = true;           // the very end: fade to black, then back to the start screen
+      const rp = (ph - 0.79) / 0.12; this.reveal = rp > 0 && rp < 1 ? 0.5 - 0.5 * Math.cos(TWO_PI * rp) : 0;
+      const cyc = Math.floor(this.clock / this.period); if (cyc !== this.cyc) { this.cyc = cyc; L.onCycle(cyc); }
+      if (ph >= 0.585 && ph < 0.66 && this.slamCyc !== cyc) {                       // the climax begins
+        this.slamCyc = cyc; this.glow = 1; L.onConverge();
+        if (this.flickAmt > 0) {                                                    // three flash events: at the slam, then about 24 s and 47 s later
+          const n = 2 + Math.floor(this.flickAmt * 2.99);                           // 2-4 white waves per event, about one per second
+          [0.5, 24, 47].forEach(off => { let t = this.clock + off; for (let k = 0; k < n; k++) { this.flashes.push({ s: t, e: t + this.waveW + 0.25, fired: false, p: null, ox: 0, oy: 0 }); t += 0.75 + 0.15 * Math.random(); } });
+        }
+      }
+    } else { this.breath = 1; this.I = 0; this.reveal = 0; this.hush = 0; this.S = 0; this.lineGain = 1; this.cool = 0; this.endFade = 0; }
+    this.flashOn = false;                                                           // is a white pulse showing right now?
+    if (this.flickAmt > 0) for (const f of this.flashes) if (this.clock >= f.s && this.clock < f.e) {
+      this.flashOn = true;
+      if (!f.fired) {                                                             // a new wave starts from one random particle
+        f.fired = true; const lv = this.ps.filter(p => p.fade > 0.5 && !p.retire);
+        f.p = lv.length ? lv[Math.floor(Math.random() * lv.length)] : null; if (f.p) { f.ox = f.p.pos.x; f.oy = f.p.pos.y; }
+        L.onFlash(f.e - f.s, f.ox / width);
+      }
+    }
+    this.flashes = this.flashes.filter(f => f.e > this.clock);
+    if (this.revealMode !== 'off' && this.reveal > 0.08 && this.clock >= this.nextSing) {   // during the reveal, one at a time, each particle that is currently connected sounds its own pitch softly
+      const cn = new Set(); for (const c of this.conns.values()) if (c.alpha > 0.3) { cn.add(c.a); cn.add(c.b); }
+      const un = this.ps.filter(p => p.fade > 0.5 && !p.retire && p.sung !== this.cyc && cn.has(p));
+      if (un.length) { const p = un[Math.floor(Math.random() * un.length)]; p.sung = this.cyc; p.ping = 1; L.onParticle(p); }
+      this.nextSing = this.clock + 0.5 + 0.7 * Math.random();
+    }
+    const tgt = this.targetN(), cur = this.ps.filter(p => !p.retire).length;
+    if (cur !== tgt && this.clock - this.lastAdj > 0.7) { this.setCount(cur + Math.sign(tgt - cur)); this.lastAdj = this.clock; }
+    const T = this.T;
+    this.ps.forEach((p, i) => { p.update(dt, this.k); if (p.dead) this.ps[i] = p.retire ? null : this.spawn(); }); // death -> birth (retired particles just leave)
+    this.ps = this.ps.filter(Boolean);
+    for (const [key, c] of this.conns) {
+      c.measure();
+      if (c.a.dead || c.b.dead || c.len > T * 1.1) this.end(key, c);  // 10% hysteresis stops flicker
+    }
+    for (let i = 0; i < this.ps.length; i++) for (let j = i + 1; j < this.ps.length; j++) {
+      const a = this.ps[i], b = this.ps[j], key = Math.min(a.id, b.id) + '-' + Math.max(a.id, b.id);
+      if (this.conns.has(key) || a.fade < 0.2 || b.fade < 0.2) continue;
+      if (dist(a.pos.x, a.pos.y, b.pos.x, b.pos.y) < T) {
+        const c = new Connection(a, b); c.measure(); this.conns.set(key, c);
+        c.bond = (this.bonds.get(key) || 0) + 1; this.bonds.set(key, c.bond);   // how many times this pair has met
+        if (this.bonds.size > 400) [...this.bonds.keys()].slice(0, 200).forEach(k => this.bonds.delete(k));
+        c.deg = (c.h & 1) ? a.deg : b.deg; c.u = c.deg / 14;
+        const o = c.deg === a.deg ? b : a;                                      // meeting conditions the other particle: it drifts toward this pitch
+        if (Math.abs(c.deg - o.deg) > 1 && random() < 0.6) o.deg += Math.sign(c.deg - o.deg);
+        L.onStart(c);
+      }
+    }
+    for (const c of this.conns.values()) {
+      c.alpha += (min(c.a.fade, c.b.fade) - c.alpha) * min(1, dt * 4);
+      L.onUpdate(c);
+    }
+    this.fading.forEach(c => c.alpha -= dt / c.fadeTime);
+    this.fading = this.fading.filter(c => c.alpha > 0);
+  }
+  checkNet() {                       // is (almost) every particle in one connected web? -> convergence moment
+    const live = this.ps.filter(p => p.fade > 0.5), par = new Map(), sizes = new Map();
+    const find = x => { while (par.get(x) !== x) { par.set(x, par.get(par.get(x))); x = par.get(x); } return x; };
+    live.forEach(p => par.set(p.id, p.id));
+    for (const c of this.conns.values()) if (par.has(c.a.id) && par.has(c.b.id)) par.set(find(c.a.id), find(c.b.id));
+    live.forEach(p => { const r = find(p.id); sizes.set(r, (sizes.get(r) || 0) + 1); });
+    const frac = live.length ? Math.max(...sizes.values()) / live.length : 0;
+    if (frac >= 0.9 && this.armed && live.length >= 6 && this.clock - (this.lastConv ?? -1e9) > Math.max(60, this.period * 0.5)) { this.armed = false; this.lastConv = this.clock; this.glow = 1; this.listener.onConverge(); }
+    else if (frac < 0.6) this.armed = true;
+  }
+  end(key, c) { c.fz = c.last; c.fadeTime = min(max(this.listener.onEnd(c), 0.15), 3); this.fading.push(c); this.conns.delete(key); }
+  display(debug) {
+    const T = this.T; strokeCap(ROUND);
+    [...this.fading, ...this.conns.values()].forEach(c => c.display(T));
+    if (this.flashOn) {          // white flicker spreading from one particle across the whole network (every particle linked to every other)
+      const live = this.ps.filter(p => p.fade > 0.3 && !p.retire), W = this.waveW, tail = 0.22;
+      blendMode(ADD); strokeWeight(1);
+      for (const f of this.flashes) {
+        if (!f.p || this.clock < f.s || this.clock >= f.e) continue;
+        const tt = this.clock - f.s; if (!f.p.dead) { f.ox = f.p.pos.x; f.oy = f.p.pos.y; }
+        let maxD = 1; const dd = live.map(p => { const d = dist(f.ox, f.oy, p.pos.x, p.pos.y); maxD = max(maxD, d); return d; });
+        const ta = dd.map(d => d / maxD * W), br = ta.map(t => tt >= t ? max(0, 1 - (tt - t) / tail) : 0);   // arrival time of the wave at each particle
+        for (let i = 0; i < live.length; i++) for (let j = i + 1; j < live.length; j++) {
+          const t = max(ta[i], ta[j]), b = tt >= t ? 1 - (tt - t) / tail : 0;             // a line flashes once the wave has reached both its ends
+          if (b > 0.03) { stroke(255, 255, 255, (90 + 110 * this.flickAmt) * b); line(live[i].pos.x, live[i].pos.y, live[j].pos.x, live[j].pos.y); }
+        }
+        noStroke(); live.forEach((p, i) => { if (br[i] > 0.03) { fill(255, 255, 255, 240 * br[i]); circle(p.pos.x, p.pos.y, 4 + 5 * br[i]); } });
+        strokeWeight(1);
+      }
+      blendMode(BLEND);
+    }
+    const a = debug || this.revealMode === 'on' ? 1 : this.revealMode === 'auto' ? this.reveal * 0.85 : 0;
+    if (a > 0.01) { strokeWeight(1); this.ps.forEach(p => p.display(T, this.k, a, debug)); }
+  }
+}
+
+// ---------- AudioEngine: reacts to connection events only ----------
+const SCALES = { minpent: [0, 3, 5, 7, 10], majpent: [0, 2, 4, 7, 9], dorian: [0, 2, 3, 5, 7, 9, 10], whole: [0, 2, 4, 6, 8, 10] };
+class AudioEngine {
+  constructor() { this.ready = false; this.maxV = 8; this.env = { A: 2.5, D: 3, S: 0.6, R: 8, H: 5 }; this.gap = 0.4; this.nextOnset = 0; this.pairLast = new Map(); this.peakHold = 0; this.melDb = -14; this.melGap = 12; this.lastPhrase = 0; this.I = 0; this.glDb = -22; this.stT = 0; this.hush = 0; this.still = 0; this.duckT = 1; this.lastH = 0; this.tapeFb = []; this.spLast = new Map(); this.spNext = 0; this.nextInt = 0; this.root = 0; this.scaleName = 'minpent'; this.setScale('minpent'); }
+  init() {
+    // chain: everything -> master -> compressor -> limiter
+    this.limiter = new Tone.Limiter(-6).toDestination();
+    this.wave = new Tone.Waveform(1024); this.limiter.connect(this.wave);   // only used for the peak read-out
+    this.comp = new Tone.Compressor({ threshold: -20, ratio: 3, attack: 0.03, release: 0.8 }).connect(this.limiter);
+    this.fadeOutG = new Tone.Gain(1).connect(this.comp);        // fades the whole piece out at the end of a run
+    this.swell = new Tone.Gain(0.65).connect(this.fadeOutG);     // overall level rises with the arc's intensity
+    this.duck = new Tone.Gain(1).connect(this.swell);            // ducked to near-silence during the pre-climax hush
+    this.master = new Tone.Gain(0.55).connect(this.duck);
+    this.bus = new Tone.Gain(0.6).connect(this.master); this.setMax(this.maxV);
+    this.verb = new Tone.Reverb({ decay: 12, preDelay: 0.05, wet: 1 }); this.verbGain = new Tone.Gain(0.3);
+    this.bus.connect(this.verb); this.verb.connect(this.verbGain); this.verbGain.connect(this.master);
+    // two "tape loops" of unrelated length; each repeat is darkened by a lowpass inside the feedback loop
+    this.tapeIn = new Tone.Gain(0.3); this.bus.connect(this.tapeIn);
+    [[7.3, 0.5, 1800, -0.6], [11.1, 0.46, 1200, 0.6]].forEach(([time, fb, cut, pan]) => {
+      const d = new Tone.Delay({ delayTime: time, maxDelay: time + 1 }), f = new Tone.Filter(cut, 'lowpass'),
+            g = new Tone.Gain(fb), p = new Tone.Panner(pan);
+      this.tapeIn.connect(d); d.connect(f); f.connect(g); g.connect(d); f.connect(p); p.connect(this.master); p.connect(this.verb); this.tapeFb.push([g, fb]);
+    });
+    // melodic cells: three soft plucked PolySynths at fixed pans (left/centre/right), also sent hard into the tape loops
+    this.phraseOut = new Tone.Gain(Tone.dbToGain(this.melDb));
+    this.phraseDry = new Tone.Gain(0.35); this.phraseOut.connect(this.phraseDry); this.phraseDry.connect(this.bus);          // quiet dry signal
+    this.melVerb = new Tone.Reverb({ decay: 9, preDelay: 0.08, wet: 1 }); this.melVerbHP = new Tone.Filter(2600, 'lowpass');  // dark, long, mostly-wet
+    this.phraseOut.connect(this.melVerb); this.melVerb.chain(this.melVerbHP, new Tone.Gain(1.2), this.master);
+    this.phraseSend = new Tone.Gain(0.9); this.phraseOut.connect(this.phraseSend); this.phraseSend.connect(this.tapeIn);      // into the tape loops
+    this.phr = [-0.7, 0, 0.7].map(pn => {
+      const s = new Tone.PolySynth(Tone.Synth, { oscillator: { type: 'sine' }, envelope: { attack: 0.12, decay: 2.2, sustain: 0, release: 4 } });
+      s.maxPolyphony = 24; s.volume.value = -6; s.chain(new Tone.Filter(2200, 'lowpass'), new Tone.Panner(pn), this.phraseOut); return s;
+    });
+    this.lfo = new Tone.LFO({ frequency: 0.21, min: -7, max: 7 }).start();   // slow pitch wobble
+    // pool of one-shot voices. Each has a main note synth and a "cue" synth (same note up an octave, slow swell)
+    // sharing one filter/volume/pan, so a voice's whole sound is shaped together. A voice is only reused once everything has died away.
+    const mk = (envelope, volume) => new Tone.Synth({ oscillator: { type: 'fatsine', count: 2, spread: 12 }, envelope, volume });
+    this.voices = Array.from({ length: 12 }, () => {
+      const syn = mk({ attack: 2, decay: 0.5, sustain: 0.8, release: 6 }, 0), cue = mk({ attack: 0.9, decay: 2.5, sustain: 0, release: 4 }, -24);
+      const filter = new Tone.Filter(1500, 'lowpass'), vol = new Tone.Volume(-60), pan = new Tone.Panner(0);
+      this.lfo.connect(syn.detune); this.lfo.connect(cue.detune); syn.connect(filter); cue.connect(filter); filter.chain(vol, pan, this.bus);
+      return { syn, cue, filter, vol, pan, conn: null, busyUntil: 0 };
+    });
+    // static layer: a constant white-noise source, gated into rapid random chops only while a white flash is showing
+    this.stNoise = new Tone.Noise('white').start();
+    this.stGate = new Tone.Gain(0); this.stFilter = new Tone.Filter(1500, 'highpass'); this.stPan = new Tone.Panner(0);
+    this.glOut = new Tone.Gain(Tone.dbToGain(this.glDb)); this.stSend = new Tone.Gain(0.2);
+    this.stNoise.chain(this.stGate, this.stFilter, this.stPan, this.glOut); this.glOut.connect(this.master); this.glOut.connect(this.stSend); this.stSend.connect(this.verb);
+    // low drone on the key's root: silent at first, it swells and brightens as the piece intensifies
+    this.droneOsc = new Tone.FatOscillator({ type: 'sawtooth', count: 3, spread: 18, frequency: 55 * 2 ** (this.root / 12) }).start();
+    this.droneFilter = new Tone.Filter(150, 'lowpass'); this.droneGain = new Tone.Gain(0);
+    this.droneOsc.chain(this.droneFilter, this.droneGain, this.master); this.droneGain.connect(this.verb);
+    this.ready = true;
+  }
+  tick() {                                                        // slow, throttled mapping of the arc's intensity onto the whole sound
+    if (!this.ready) return;
+    const now = Tone.now(); if (now < this.nextInt) return; this.nextInt = now + 0.25; const I = this.I;
+    this.swell.gain.rampTo(0.65 + 0.55 * I, 0.4);                                                            // louder
+    this.droneGain.gain.rampTo(I < 0.05 ? 0 : Tone.dbToGain(-46 + 22 * Math.pow(I, 1.3)), 0.6);              // low drone swells in
+    this.droneFilter.frequency.rampTo(110 + 900 * I, 0.6);                                                    // and brightens
+    this.tapeIn.gain.rampTo(0.3 + 0.35 * I, 0.6);                                                             // more echo
+  }
+  fadeOut(t) { if (this.ready) this.fadeOutG.gain.rampTo(0, t); }
+  finish() { if (!this.ready) return; this.fadeOutG.gain.value = 0; this.tapeFb.forEach(([g]) => g.gain.value = 0); this.tapeIn.gain.value = 0; this.droneGain.gain.value = 0; }
+  restart() {
+    if (!this.ready) return; const now = Tone.now();
+    this.fadeOutG.gain.cancelScheduledValues(now); this.fadeOutG.gain.setValueAtTime(0, now); this.fadeOutG.gain.linearRampToValueAtTime(1, now + 3);
+    this.tapeFb.forEach(([g, fb]) => g.gain.value = fb);
+    this.pairLast.clear(); this.spLast.clear(); this.nextOnset = 0; this.stT = 0; this.lastPhrase = 0; this.duckT = 1; this.duck.gain.value = 1; this.hush = 0; this.lastH = 0; this.swell.gain.value = 0.65; this.nextInt = 0;
+  }
+  sparkle(c, now) {                                               // at high intensity every new connection adds a brief high glint, so the texture thickens with the connections
+    if (this.I < 0.35 || now < this.spNext) return;
+    const last = this.spLast.get(c.h); if (last !== undefined && now - last < 6) return;
+    if (this.spLast.size > 300) this.spLast.clear();
+    this.spLast.set(c.h, now); this.spNext = now + 0.2 - 0.12 * this.I;
+    try { this.phr[Math.min(2, Math.floor(c.mid[0] / width * 3))].triggerAttackRelease(this.hz(c.deg % this.notes.length) * 4, 0.5, now + 0.03, 0.15 + 0.3 * this.I); } catch (err) { console.warn(err); }
+  }
+  get gapNow() { return this.gap * (1 - 0.75 * this.I); }          // notes crowd closer together as the piece intensifies
+  setGl(db) { this.glDb = db; if (this.ready) this.glOut.gain.rampTo(Tone.dbToGain(db), 0.1); }
+  setHush(h) {                                                    // duck everything to near-silence before the climax; release at once when it breaks
+    this.hush = h; const target = 1 - 0.94 * h;
+    if (this.ready && Math.abs(target - this.duckT) > 0.03) { this.duck.gain.rampTo(target, h > this.lastH ? 0.5 : 0.08); this.duckT = target; }
+    this.lastH = h;
+  }
+  onFlash(dur, x) {                                               // a white wave crosses the network: static rises and falls with it, panned across and brightening
+    if (!this.ready) return;
+    const t = Math.max(Tone.now() + 0.02, this.stT), slot = 0.011, n = Math.max(1, Math.round(dur / slot)), g = this.stGate.gain, p0 = constrain(x * 2 - 1, -1, 1) * 0.8;
+    try {
+      this.stFilter.frequency.setValueAtTime(700, t); this.stFilter.frequency.linearRampToValueAtTime(3800, t + dur);
+      this.stPan.pan.setValueAtTime(p0, t); this.stPan.pan.linearRampToValueAtTime(-p0 * 0.6, t + dur);
+      for (let i = 0; i < n; i++) g.setValueAtTime((Math.random() < 0.2 ? 0 : [0.4, 0.7, 1][Math.floor(Math.random() * 3)]) * Math.sin(Math.PI * (i + 0.5) / n), t + i * slot);
+      g.setValueAtTime(0, t + dur);
+    } catch (err) { console.warn(err); }
+    this.stT = t + dur + 0.01;
+  }
+  onParticle(p) {                                                 // a revealed particle sounds its own pitch, very softly
+    if (!this.ready) return;
+    try { this.phr[Math.min(2, Math.floor(p.pos.x / width * 3))].triggerAttackRelease(this.hz(p.deg % this.notes.length) * 2, 3, Tone.now() + 0.03, 0.3); } catch (err) { console.warn(err); }
+  }
+  setEnv() { if (this.ready) this.voices.forEach(v => { v.syn.envelope.decay = this.env.D; v.syn.envelope.sustain = this.env.S; }); }
+  setMax(n) { this.maxV = n; if (this.bus) this.bus.gain.rampTo(1.4 / Math.sqrt(n), 0.2); }
+  setMel(db) { this.melDb = db; if (this.ready) this.phraseOut.gain.rampTo(Tone.dbToGain(db), 0.1); }
+  setScale(name) {
+    this.scaleName = name; this.notes = [];
+    for (let o = 0; o < 3; o++) SCALES[name].forEach(s => this.notes.push(45 + this.root + 12 * o + s)); // from A2 (+key), 3 octaves
+  }
+  onCycle(n) { this.root = (n * 7) % 12; this.setScale(this.scaleName); if (this.ready) this.droneOsc.frequency.rampTo(55 * 2 ** (this.root / 12), 2); }   // each macro cycle the key moves up a fifth
+  hz(i) { return 440 * 2 ** ((this.notes[i] - 69) / 12); }
+  freq(c) { return this.hz(c.note); }
+  // pan from x; brightness from y and closeness; level from closeness and the line's fade
+  shape(v, c, ramp) {
+    const t = constrain(1 - (c.len - sys.minLen) / (sys.T - sys.minLen), 0, 1), [mx, my] = c.mid;
+    const pan = mx / width * 2 - 1, cut = 500 * 2 ** (2.5 * t + 2 * (1 - my / height) + 1.4 * this.I), db = -26 + 10 * t + 20 * Math.log10(max(c.alpha, 0.001));
+    if (ramp) { v.pan.pan.rampTo(pan, ramp); v.filter.frequency.rampTo(cut, ramp); v.vol.volume.rampTo(db, ramp); }
+    else { v.pan.pan.value = pan; v.filter.frequency.value = cut; v.vol.volume.value = db; }
+  }
+  play(v, f, t0, atk, rel, dur, cue) {
+    const e = v.syn.envelope; e.attack = atk; e.decay = this.env.D; e.sustain = this.env.S; e.release = rel;
+    v.busyUntil = t0 + Math.max(dur + rel, 5.5) + 0.2;       // long enough for the cue swell too
+    try { v.syn.triggerAttackRelease(f, dur, t0); } catch (err) { console.warn(err); }
+    if (cue) try { v.cue.triggerAttackRelease(f * 2, 0.9, t0); } catch (err) { console.warn(err); }
+  }
+  // A new connection fires ONE note that plays out its own envelope, plus a short melodic cell. Ending the connection never touches the sound.
+  onStart(c) {
+    if (!this.ready || this.hush > 0.5) return;                   // no new notes during the hush
+    const now = Tone.now();
+    for (const [k, t] of this.pairLast) if (now - t > 20) this.pairLast.delete(k);
+    if (this.pairLast.has(c.h)) return;                           // same pair re-forming: stay quiet
+    this.sparkle(c, now);
+    const t0 = Math.max(now + 0.03, this.nextOnset);              // onsets spaced by 'gap'
+    if (t0 - now > this.gapNow * 3 + 0.5) return;                    // too crowded: this line stays silent
+    const v = this.voices.slice(0, Math.min(12, this.maxV + Math.round(4 * this.I))).find(x => x.busyUntil <= now);   // a few extra voices at the peak
+    if (!v) return;                                               // no free voice: never steal one
+    this.nextOnset = t0 + this.gapNow; this.pairLast.set(c.h, now);
+    c.note = c.deg % this.notes.length;                           // pitch comes from the particles' inherited, conditioned degrees
+    const E = this.env, atk = E.A * (1 - 0.68 * c.closingN), rel = E.R * (1 - 0.5 * c.relN);
+    v.conn = c; c.voice = v; this.shape(v, c, 0);
+    v.cue.volume.value = -24 + 12 * this.I;                       // the octave swell gets stronger with intensity
+    this.play(v, this.freq(c), t0, atk, rel, Math.max(E.H, atk + 0.5), true);
+    this.phrase(c, t0);
+  }
+  // Each pair owns a short melodic cell (3-6 notes, its own tempo) derived from its hash; bonded pairs (met before) get longer cells.
+  phrase(c, t0) {
+    // Melody is now rare and meaningful: only pairs that have met before ("bonded") sing, and no more than one phrase per 'melGap' seconds overall.
+    if ((c.bond < 2 && this.I < 0.55) || this.still > 0.4 || t0 - (this.lastPhrase || 0) < this.melGap * (1 - 0.7 * this.I)) return;   // bonded pairs sing; at high intensity any pair can, more often; none in the stillness
+    this.lastPhrase = t0;
+    let sd = c.h; const r = () => (sd = (Math.imul(sd, 1664525) + 1013904223) >>> 0) / 4294967296;
+    const n = this.notes.length, len = 2 + Math.floor(r() * 2) + (this.I > 0.7 ? 1 : 0), base = (1.4 + 0.5 * Math.floor(r() * 3)) * (1 - 0.4 * this.I);   // 2-4 notes (more if bonded), 1.6-3.4 s apart
+    const syn = this.phr[Math.min(2, Math.floor(c.mid[0] / width * 3))]; let i = c.deg % n, t = t0 + 0.6;                // start well after the main note
+    for (let k = 0; k < len; k++) {
+      try { syn.triggerAttackRelease(this.hz(i) * 2, 2, t, 0.8 - 0.1 * k); } catch (err) { console.warn(err); }
+      i = constrain(i + [-2, -1, 1, 2][Math.floor(r() * 4)], 0, n - 1);
+      t += base * (0.8 + 0.5 * r()) + (r() < 0.3 ? base : 0);                      // slightly uneven, with occasional rests
+    }
+  }
+  onUpdate(c) {                                         // while connected, gently shape the note (10x/s); afterwards it just rings out
+    const v = c.voice; if (!this.ready || !v || v.conn !== c) return;
+    const now = Tone.now(); if (now < (c.nextMod || 0)) return; c.nextMod = now + 0.1;
+    this.shape(v, c, 0.25);
+  }
+  onEnd(c) {                                            // returns how long the line's afterimage lingers (matches the note's tail)
+    const v = c.voice; if (!v) return 0.6;
+    const left = Math.max(v.busyUntil - Tone.now(), 0);
+    if (v.conn === c) v.conn = null; c.voice = null;
+    return left;
+  }
+  // The whole network has become one connected web: a slow suspended chord on the reserved voices (any voice above 'Max voices')
+  onConverge() {
+    if (!this.ready) return;
+    const now = Tone.now(), n = this.notes.length; let k = 0;
+    [0, 2, n, n + 2, 2 * n].forEach(i => {
+      const v = this.voices.find(x => x.busyUntil <= now); if (!v) return;
+      v.conn = null; v.pan.pan.value = (k % 2 ? 1 : -1) * 0.1 * k; v.filter.frequency.value = 2200; v.vol.volume.value = -20;
+      this.play(v, this.hz(i), now + 0.2 + 0.35 * k++, 3, 10, 9, false);
+    });
+  }
+  peak() {                                              // rough peak read-out (dB) of the final output
+    if (!this.ready) return -Infinity;
+    const w = this.wave.getValue(); let m = 0; for (let i = 0; i < w.length; i++) m = Math.max(m, Math.abs(w[i]));
+    this.peakHold = Math.max(m, this.peakHold * 0.97); return 20 * Math.log10(Math.max(this.peakHold, 1e-6));
+  }
+}
+
+// ---------- p5 glue ----------
+let sys, audio, debug = false, theme = 'ember', running = false, starting = false, ending = false;
+const EMBER = [[255, 84, 40], [135, 90, 255]];  // red-orange (low notes) to blue-purple (high notes)
+const $ = id => document.getElementById(id);
+// Palette: warm ember (red-orange) to violet while the piece builds. After the climax it cools towards blue-purple, so the end is never green or orange.
+// Each run's warm colour leans a little more towards rose than the last (three variants). Mono theme stays white.
+const ROSE = [255, 50, 120], COOL = [[170, 70, 255], [50, 120, 255]];
+const mixC = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
+const emberCol = u => mixC(mixC(mixC(EMBER[0], ROSE, sys.runTint), COOL[0], sys.cool), mixC(EMBER[1], COOL[1], sys.cool), u);
+const toast = msg => { const t = $('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2600); };
+const toggleFullscreen = () => { if (!document.fullscreenElement) { const r = document.documentElement.requestFullscreen; if (r) r.call(document.documentElement).catch(() => toast('Fullscreen is not available here')); } else document.exitFullscreen(); };
+const hideControls = on => { document.body.classList.toggle('perf', on); if (on) toast('Controls hidden: press H to show them'); };
+async function startPiece() {
+  if (running || starting) return; starting = true;
+  await Tone.start(); if (!audio.ready) audio.init();
+  sys.reset(); audio.restart(); audio.onCycle(sys.runs);
+  running = true; ending = false; starting = false; $('start').classList.add('off');
+}
+function endPiece() { running = false; audio.finish(); $('start').classList.remove('off'); }   // back to the start screen
+function setup() {
+  createCanvas(windowWidth, windowHeight); 
+  sys = new ParticleSystem(16); sys.period = 15 * 60; sys.clock = sys.period * 0.05;   // start at the quiet beginning of the build
+  audio = new AudioEngine(); sys.listener = audio;
+  const bind = (id, fn) => $(id).addEventListener('input', e => { fn(e.target); if ($('v' + id)) $('v' + id).textContent = e.target.value; });
+  bind('N', e => { sys.baseN = +e.value; sys.setCount(sys.targetN()); });
+  bind('BP', e => sys.boost = +e.value); bind('FL', e => sys.flickAmt = +e.value / 100); bind('GL', e => audio.setGl(+e.value)); bind('R', e => sys.revealMode = e.value); bind('T', e => sys.thr = e.value / 100);
+  bind('S', e => sys.k = +e.value); bind('V', e => audio.setMax(+e.value));
+  bind('C', e => audio.setScale(e.value));
+  bind('D', e => debug = e.checked);
+  bind('MP', e => { const ph = sys.period > 0 ? sys.clock / sys.period : 0.05; sys.period = +e.value * 60; sys.clock = ph * sys.period; }); bind('ML', e => audio.setMel(+e.value)); bind('MG', e => audio.melGap = +e.value);
+  bind('HL', e => audio.env.H = +e.value); bind('GP', e => audio.gap = +e.value);
+  bind('EA', e => audio.env.A = +e.value); bind('ER', e => audio.env.R = +e.value);
+  bind('ED', e => { audio.env.D = +e.value; audio.setEnv(); }); bind('ES', e => { audio.env.S = +e.value; audio.setEnv(); }); bind('L', e => sys.minf = e.value / 100); bind('H', e => theme = e.value);
+  $('tog').onclick = () => { $('body').classList.toggle('hidden'); $('tog').textContent = $('body').classList.contains('hidden') ? '+' : '–'; };
+  $('start').onclick = startPiece; $('fs').onclick = toggleFullscreen; $('hide').onclick = () => hideControls(true);
+}
+function draw() {
+  if (!running) { background(0); return; }
+  background(0, 0, 0, 70);
+  sys.update(min(deltaTime / 1000, 0.05)); audio.I = sys.I; audio.still = sys.S; audio.setHush(sys.hush); audio.tick();
+  sys.display(debug);
+  if (sys.endFade > 0) {                       // the end of the run: fade the picture (and the sound) to black
+    noStroke(); fill(0, 255 * sys.endFade); rect(0, 0, width, height);
+    if (!ending) { ending = true; audio.fadeOut(max(0.5, sys.period - sys.clock)); }
+  }
+  if (sys.finished) { endPiece(); return; }
+  if (audio.ready && frameCount % 6 === 0) { const db = audio.peak(), l = $('lvl'); l.textContent = 'Peak: ' + (db < -90 ? '–' : db.toFixed(1) + ' dB'); l.style.color = db > -1 ? '#ff6b6b' : ''; }
+}
+function keyPressed() {
+  if (key === 'd' || key === 'D') { debug = !debug; $('D').checked = debug; }
+  else if (key === 'f' || key === 'F') toggleFullscreen();
+  else if (key === 'h' || key === 'H') hideControls(!document.body.classList.contains('perf'));
+  else if (!running && (key === ' ' || keyCode === ENTER)) startPiece();
+}
+function windowResized() { resizeCanvas(windowWidth, windowHeight); }
+</script>
+</body>
+</html>
